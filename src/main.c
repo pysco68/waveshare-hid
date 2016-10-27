@@ -28,13 +28,12 @@ int main(void)
 	// setup the i2c communication
     setup_gt811();
 
-	// read version
-	gt811_read_register(0x717, 2, buf);
-
-	// read the full touch report
-	gt811_read_register(0x721, 34, data);
-
+	uint8_t buf[34];
 
 	while (1) {
+
+		// read the full touch report
+		gt811_read_register(0x721, 34, buf);
+
 	}
 }
