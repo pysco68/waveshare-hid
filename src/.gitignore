@@ -1,0 +1,10 @@
+*.hex
+*.map
+*.o
+*.d
+*.bin
+*.elf
+*.swp
+*.coproj
+*.comarker
+*.cogui
