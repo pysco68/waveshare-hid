@@ -15,26 +15,17 @@
 	You should have received a copy of the GNU General Public License
 	along with this program. If not, see <http://www.gnu.org/licenses/>.
 
- */	
+ */
 
-#include <stdlib.h>
-#include <libopencm3/gd32/rcc.h>
+#ifndef GT811_H_INCLUDED
+#define GT811_H_INCLUDED
 
-int main(void)
-{
-	// setup the CPU
-	rcc_clock_setup_in_hse_8mhz_out_72mhz();    // 72MHz clock using on-board crystal / HSE
+// I2C read and write addresses as per datasheet
+#define GT811_ADDRESS 0xBA 
+#define GT811_REGISTERS_CONFIGURATION 0x6A2
+#define GT811_REGISTERS_READ 0x721
 
-	// setup the i2c communication
-    setup_gt811();
+void setup_gt811(void);
+void gt811_read_register(uint16_t reg, uint8_t size, uint8_t *data);
 
-	// read version
-	gt811_read_register(0x717, 2, buf);
-
-	// read the full touch report
-	gt811_read_register(0x721, 34, data);
-
-
-	while (1) {
-	}
-}
+#endif /* GT811_H_INCLUDED */
