@@ -15,30 +15,18 @@
 	You should have received a copy of the GNU General Public License
 	along with this program. If not, see <http://www.gnu.org/licenses/>.
 
- */	
+ */
 
-#include <stdlib.h>
-#include <libopencm3/gd32/rcc.h>
+#ifndef USB_SETUP_H_INCLUDED
+#define USB_SETUP_H_INCLUDED
 
-#include "usb_device.h"
-#include "gt811.h"
+#include <libopencm3/usb/usbd.h>
 
-int main(void)
-{
-	uint32_t delayCnt;
+#define ENDPOINT_ADDRESS 0x81
 
-	// setup the CPU
-	rcc_clock_setup_in_hse_8mhz_out_72mhz();    // 72MHz clock using on-board crystal / HSE
+void setup_usb(void);
+void poll_usb(void);
+void hid_set_config(usbd_device *cb_usbd_dev, uint16_t wValue);
+int hid_control_request(usbd_device *cb_usbd_dev, struct usb_setup_data *req, uint8_t **buf, uint16_t *len, usbd_control_complete_callback *complete);
 
-    // setup the USB
-    setup_usb();
-
-    // wait for the USB port to come up...
-    for(delayCnt = 0; delayCnt < 100000; delayCnt++)
-        __asm__("nop");       
-
-
-	while (1) {
-		poll_usb();
-	}
-}
+#endif
