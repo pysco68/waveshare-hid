@@ -17,35 +17,11 @@
 
  */	
 
-#include <stdlib.h>
-#include <libopencm3/gd32/rcc.h>
+#ifndef SYSTICK_H_INCLUDED
+#define SYSTICK_H_INCLUDED
 
-#include "usb_device.h"
-#include "systick.h"
-#include "gt811.h"
+void setup_systick(void);
+void msleep(uint32_t delay);
+uint16_t get_scan_time(void);
 
-int main(void)
-{
-	uint32_t delayCnt;
-
-	// setup the CPU
-	rcc_clock_setup_in_hse_8mhz_out_72mhz();    // 72MHz clock using on-board crystal / HSE
-
-    // start the clock
-    setup_systick();
-
-    // setup the I2C bus and configure the GT811 touchscreen controller
-    setup_gt811();
-
-    // setup the USB
-    setup_usb();
-
-    // wait for the USB port to come up...
-    for(delayCnt = 0; delayCnt < 100000; delayCnt++)
-        __asm__("nop");       
-
-
-	while (1) {
-		poll_usb();
-	}
-}
+#endif

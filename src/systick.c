@@ -17,35 +17,42 @@
 
  */	
 
-#include <stdlib.h>
 #include <libopencm3/gd32/rcc.h>
-
-#include "usb_device.h"
+#include <libopencm3/cm3/nvic.h>
+#include <libopencm3/cm3/systick.h>
 #include "systick.h"
-#include "gt811.h"
 
-int main(void)
+// we define ticks as 1ms
+uint32_t ticks = 0;
+
+void sys_tick_handler(void)
 {
-	uint32_t delayCnt;
+    // simply increment that!
+	ticks++;
+}
 
-	// setup the CPU
-	rcc_clock_setup_in_hse_8mhz_out_72mhz();    // 72MHz clock using on-board crystal / HSE
+void setup_systick(void)
+{
+    // 72MHz / 8 => 9000000 counts per second 
+	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
 
-    // start the clock
-    setup_systick();
+	// 9000000/9009 = 1000 overflows per second - every 1ms one interrupt
+	// SysTick interrupt every N clock pulses: set reload to N-1
+	systick_set_reload(8999);
 
-    // setup the I2C bus and configure the GT811 touchscreen controller
-    setup_gt811();
+    // Start counting
+	systick_interrupt_enable();
+    systick_counter_enable();
+}
 
-    // setup the USB
-    setup_usb();
+// sleep for t milliseconds
+void msleep(uint32_t delay)
+{
+	uint64_t wake = ticks + delay;
+	while (wake > ticks);
+}
 
-    // wait for the USB port to come up...
-    for(delayCnt = 0; delayCnt < 100000; delayCnt++)
-        __asm__("nop");       
-
-
-	while (1) {
-		poll_usb();
-	}
+uint16_t get_scan_time(void)
+{
+    return (uint16_t)(ticks & 0xFFFF);
 }

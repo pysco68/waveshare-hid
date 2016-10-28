@@ -342,6 +342,9 @@ void gt811_write_register(uint16_t reg, uint8_t size, uint8_t *data)
 // Setup I2C
 void setup_gt811(void)
 {
+	/** setup GPIO */
+	rcc_periph_clock_enable(RCC_GPIOB);     // enable clock for IO port B  
+
     /** setup I2C2 */
     rcc_periph_clock_enable(RCC_I2C2);      // Enable clocks for I2C2
 	rcc_periph_clock_enable(RCC_AFIO);      // and AFIO
