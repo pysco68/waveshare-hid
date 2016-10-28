@@ -20,6 +20,8 @@
 #include <libopencm3/gd32/i2c.h>
 #include <libopencm3/gd32/gpio.h>
 #include <libopencm3/gd32/rcc.h>
+#include "usb_device.h"
+#include "systick.h"
 #include "gt811.h"
 
 // this is the GT811 configuration that will be written
@@ -364,4 +366,125 @@ void setup_gt811(void)
 
     /** write the configuration array to the GT811 */
     gt811_write_register(GT811_REGISTERS_CONFIGURATION, sizeof(gt811_config), (uint8_t*)gt811_config);
+}
+
+
+///
+// GT811 receive buffer
+uint8_t data[34];
+
+///
+// buffer for one HID report
+uint8_t hid_report[11] = 
+{
+     0x01 // byte[0] = 0x01 (Report ID, for this application, always = 0x01)
+}; 
+
+///
+// variables for gt811_poll() processing loop
+uint8_t i, currentFinger, validTouchPoints, offsetData, sentReports;
+uint16_t y_value, inverted_y, scan_time;
+
+///
+// poll the GT811 for touch reports and
+// split the result in HID reports to send to our controller
+void gt811_poll(void)
+{
+    if (gpio_get(GPIOB, GPIO6) == 0) {
+
+        // clear the data from previous loop iteration
+        for(i = 0; i < sizeof(data); i++)
+            data[i] = 0; 
+        
+        // read the current touch report
+        gt811_read_register(0x721, 34, data);
+
+        // init some variables
+        validTouchPoints = 0;
+        sentReports = 0;
+        scan_time = get_scan_time();
+
+        // find out how many touches we have:
+        for(currentFinger = 0; currentFinger < 5; currentFinger++)
+        {  
+            // check if the "finger N" bit is set high in GT811 answer
+            if((data[0] & (0b00000001 << currentFinger)) > 0) 
+                validTouchPoints++;
+        }
+
+        // we need to get rid of the stupid "reserved" (0x733 to 0x739) 
+        // bytes in the GT811 touch reports for easier access later
+        // so we shift them accordingly
+        for(i = 24; i < 34; i++) 
+        {
+            data[i - 6] = data[i];
+            data[i] = 0;
+        }
+
+        // send one report per finger found
+        for(currentFinger = 0; currentFinger < 5; currentFinger++)
+        {                  
+            // check if the "finger N" bit is set high in GT811 answer
+            if((data[0] & (0b00000001 << currentFinger)) > 0) 
+            {
+                // byte[1] = state        
+                // .......x: Tip switch
+                // xxxxxxx.: Ignored
+                hid_report[1] = 0b00000001;
+            }
+            else
+                continue;   // skip this "finger"
+            
+            // calculate the "data offset" in the GT811 data_align
+            // for the current finger / at 5 bytes per finger
+            offsetData = currentFinger * 5; 
+
+            // byte[2] Contact index
+            hid_report[2] = currentFinger;
+
+            // byte[3] Tip pressure
+            hid_report[3] = data[offsetData + 6];
+
+            // NOTE: apparently the waveshare touch digitizer was mounted
+            // mirrored in both directions, this means we "flip" X <-> Y
+            // coordinates AND we have to mirror the Y axis
+
+            // byte[4] X coordinate LSB                
+            hid_report[4] = data[offsetData + 5];
+            
+            // byte[5] X coordinate MSB 
+            hid_report[5] = data[offsetData + 4];
+
+            // Y is inverted for some reason
+            // so we have to do some math here...
+            // basicall y max - value...
+            y_value =  data[offsetData + 3] + (data[offsetData + 2] << 8);
+            inverted_y = 480 - y_value;
+
+            // byte[6] Y coordinate LSB
+            hid_report[6] = inverted_y & 0xFF;
+
+            // byte[7] Y coordinate MSB
+            hid_report[7] = (inverted_y & 0xFF00) >> 8;    
+
+            // todo add the systick stuff again
+            hid_report[8] = scan_time & 0xFF;
+            hid_report[9] = (scan_time & 0xFF00) >> 8;
+
+            // byte[8] contact count  
+            if(sentReports == 0) 
+            {
+                // this is the first report in the frame: write touch count in report
+                hid_report[10] = validTouchPoints;   
+            }                    
+            else
+                hid_report[10] = 0;
+
+            // send that report!
+            send_hid_report(hid_report, 11);
+
+            // remember we sent a report
+            sentReports++;
+        }            
+    }
 }

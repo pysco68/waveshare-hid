@@ -27,6 +27,7 @@
 void setup_usb(void);
 void poll_usb(void);
 void hid_set_config(usbd_device *cb_usbd_dev, uint16_t wValue);
+void send_hid_report(uint8_t *hid_report, uint8_t len);
 int hid_control_request(usbd_device *cb_usbd_dev, struct usb_setup_data *req, uint8_t **buf, uint16_t *len, usbd_control_complete_callback *complete);
 
 #endif

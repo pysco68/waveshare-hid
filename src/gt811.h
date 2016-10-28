@@ -28,5 +28,6 @@
 void setup_gt811(void);
 void gt811_read_register(uint16_t reg, uint8_t size, uint8_t *data);
 void gt811_write_register(uint16_t reg, uint8_t size, uint8_t *data);
+void gt811_poll(void);
 
 #endif /* GT811_H_INCLUDED */

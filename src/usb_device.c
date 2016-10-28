@@ -222,6 +222,15 @@ void poll_usb(void)
 }
 
 ///
+// (re)send a single report (until it actually got over the wire)
+void send_hid_report(uint8_t *hid_report, uint8_t len)
+{
+    // the usb driver doesn't provide a working report "buffer" so we have to
+    // retry sending the report until we get succeed (return value eq length parameter<)
+    while(usbd_ep_write_packet(usbd_dev, ENDPOINT_ADDRESS, hid_report, len) != len);
+}
+
+///
 // handle USB controll requests
 int hid_control_request(usbd_device *cb_usbd_dev, struct usb_setup_data *req, uint8_t **buf, uint16_t *len, usbd_control_complete_callback *complete)
 {

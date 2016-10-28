@@ -46,6 +46,7 @@ int main(void)
 
 
 	while (1) {
-		poll_usb();
+        poll_usb();
+        gt811_poll();
 	}
 }
