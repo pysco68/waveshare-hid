@@ -47,6 +47,14 @@ uint8_t usbd_control_buffer[128];   // Buffer to be used for control requests.
 // [9]  Scan time MSB
 // [10] Contact count (for the serial hybrid / fill in 1st report per frame with the number of reports to come, then 0)
 //
+// Additionally the HID touch devices specification requires the touch
+// device to be able to report the maximum number of touch reports
+// per frame in a USB control request as "feature report"
+//
+// That feature report can look like:
+// [0] Report ID (0x02 as defined in the hid report descriptor)
+// [1] Max number of contact points (hardcoded 0x05 in our case)
+//
 // Much information on the topic can be found at:
 // https://msdn.microsoft.com/en-us/library/windows/hardware/dn672287(v=vs.85).aspx
 //
@@ -102,6 +110,11 @@ static const uint8_t hid_report_descriptor[] = {
     0x95, 0x01,                         //    REPORT_COUNT (1)
     0x75, 0x08,                         //    REPORT_SIZE (8)    
     0x81, 0x02,                         //    INPUT (Data,Var,Abs)
+    0x85, 0x02,                         //    REPORT_ID (Feature)              
+    0x09, 0x55,                         //    USAGE(Contact Count Maximum)
+    0x95, 0x01,                         //    REPORT_COUNT (1)
+    0x25, 0x02,                         //    LOGICAL_MAXIMUM (2)
+    0xb1, 0x02,                         //    FEATURE (Data,Var,Abs)
     0xc0                                // END_COLLECTION
 };
 
@@ -206,6 +219,15 @@ struct usb_config_descriptor config = {
 };
 
 ///
+// A specification conforming HID touchscreens must be 
+// able to report the number of possible simultaneous 
+// touch contact points, 5 in the case of the GT811
+static const uint8_t hid_feature_report[] = {
+    0x02, // report id
+    0x05  // number of contact points
+};
+
+///
 // setup the usb peripheral
 void setup_usb(void)
 {
@@ -244,6 +266,14 @@ int hid_control_request(usbd_device *cb_usbd_dev, struct usb_setup_data *req, ui
         *len = sizeof(hid_report_descriptor);
         return 1;
     }
+
+    // we were just asked to send the HID feature report
+    else if (req->bmRequestType == 0xA1 && req->bRequest == 0x01 && req->wValue == 0x0302) // 0x01 = GET_REPORT
+    {
+        *buf = (uint8_t *)hid_feature_report;
+        *len = sizeof(hid_feature_report);
+        return 1;
+    }    
 
     return 0;
 }

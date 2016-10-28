@@ -195,6 +195,45 @@ static const uint8_t gt811_config[]=
     
 }; 
 
+// write n bytes to GT811 starting at
+void gt811_write_register(uint16_t reg, uint8_t size, uint8_t *data)
+{
+    uint32_t reg32 __attribute__((unused));
+    const uint32_t i2c = I2C2;
+
+    /* Send START condition. */
+	i2c_send_start(i2c);
+    i2c_enable_ack(i2c);
+
+	/* Waiting for START is send and switched to master mode. */
+	while (!((I2C_SR1(i2c) & I2C_SR1_SB)
+		& (I2C_SR2(i2c) & (I2C_SR2_MSL | I2C_SR2_BUSY))));
+
+    //send address write
+    i2c_send_7bit_address(I2C2, GT811_ADDRESS >> 1, I2C_WRITE);
+    
+    /* Waiting for address is transferred. */
+    while (!(I2C_SR1(I2C2) & I2C_SR1_ADDR));    
+
+	/* Cleaning ADDR condition sequence. */
+	reg32 = I2C_SR2(i2c);    
+
+	i2c_send_data(i2c, reg >> 8); // register MSB
+	while (!(I2C_SR1(I2C2) & (I2C_SR1_BTF | I2C_SR1_TxE)));
+
+    i2c_send_data(i2c, reg & 0xFF); // register LSB
+	while (!(I2C_SR1(I2C2) & (I2C_SR1_BTF | I2C_SR1_TxE)));
+
+    int8_t i;
+
+    for(i = 0; i < size; i++)
+    {
+        i2c_send_data(i2c, data[i]); // send data byte
+	    while (!(I2C_SR1(I2C2) & (I2C_SR1_BTF | I2C_SR1_TxE)));
+    }
+
+    i2c_send_stop(i2c);
+}
 
 // read n bytes from GT811 given the start register
 void gt811_read_register(uint16_t reg, uint8_t size, uint8_t *data)
@@ -300,51 +339,9 @@ void gt811_read_register(uint16_t reg, uint8_t size, uint8_t *data)
     }    
 }
 
-// write n bytes to GT811 starting at
-void gt811_write_register(uint16_t reg, uint8_t size, uint8_t *data)
-{
-    uint32_t reg32 __attribute__((unused));
-    const uint32_t i2c = I2C2;
-
-    /* Send START condition. */
-	i2c_send_start(i2c);
-    i2c_enable_ack(i2c);
-
-	/* Waiting for START is send and switched to master mode. */
-	while (!((I2C_SR1(i2c) & I2C_SR1_SB)
-		& (I2C_SR2(i2c) & (I2C_SR2_MSL | I2C_SR2_BUSY))));
-
-    //send address write
-    i2c_send_7bit_address(I2C2, GT811_ADDRESS >> 1, I2C_WRITE);
-    
-    /* Waiting for address is transferred. */
-    while (!(I2C_SR1(I2C2) & I2C_SR1_ADDR));    
-
-	/* Cleaning ADDR condition sequence. */
-	reg32 = I2C_SR2(i2c);    
-
-	i2c_send_data(i2c, reg >> 8); // register MSB
-	while (!(I2C_SR1(I2C2) & (I2C_SR1_BTF | I2C_SR1_TxE)));
-
-    i2c_send_data(i2c, reg & 0xFF); // register LSB
-	while (!(I2C_SR1(I2C2) & (I2C_SR1_BTF | I2C_SR1_TxE)));
-
-    int8_t i;
-
-    for(i = 0; i < size; i++)
-    {
-        i2c_send_data(i2c, data[i]); // send data byte
-	    while (!(I2C_SR1(I2C2) & (I2C_SR1_BTF | I2C_SR1_TxE)));
-    }
-
-    i2c_send_stop(i2c);
-}
-
-///
-// Setup I2C
 void setup_gt811(void)
 {
-	/** setup GPIO */
+    /** setup GPIO */
 	rcc_periph_clock_enable(RCC_GPIOB);     // enable clock for IO port B  
 
     /** setup I2C2 */
@@ -367,7 +364,6 @@ void setup_gt811(void)
     /** write the configuration array to the GT811 */
     gt811_write_register(GT811_REGISTERS_CONFIGURATION, sizeof(gt811_config), (uint8_t*)gt811_config);
 }
-
 
 ///
 // GT811 receive buffer
