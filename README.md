@@ -45,13 +45,13 @@ I soldered three DuPont wires directly on the PCB and attached my BlackMagic Pro
 
 Next get the sources and compile everything:
 
-	git clone repo
-	cd waveshare-hid/libpencm3
+	git clone https://github.com/pysco68/waveshare-hid.git
+	cd waveshare-hid/libopencm3
 	make 	# compile the libopencm3/GD32 fork
 	cd ../src
 	make	# compile the new touchscreen firmware
 
-NOTE: I'm using a BlackMagic Probe in the following
+NOTE: I'm using a BlackMagic Probe and GDB in the following to flash the firmware
 
 	arm-none-eabi-gdb main.elf
 
