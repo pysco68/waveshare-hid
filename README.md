@@ -89,9 +89,8 @@ What works:
 - Five point multitouch
 - working under Ubuntu 16.10
 - working under Raspbian Jessie
-- Verified working under Windows 10 Anniversary Update (didn't really work with original firmware)
+- working under Windows 10 Anniversary Update (didn't really work with original firmware)
+- **working under Windows 10 IoT Anniversary Update on RaspberryPi (didn't work with original firmware either)**
 
-What doesn't work (just yet hopefully)
-- Touch under Windows 10 IoT Anniversary Update on RaspberryPi (didn't work with original firmware either)
-
-I'm in touch with Microsoft regarding Windows 10 IoT, hopefully I'll get that working soon!
+~~What doesn't work (just yet hopefully)~~
+~~I'm in touch with Microsoft regarding Windows 10 IoT, hopefully I'll get that working soon!~~
