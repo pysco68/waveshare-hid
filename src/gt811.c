@@ -339,6 +339,34 @@ void gt811_read_register(uint16_t reg, uint8_t size, uint8_t *data)
     }    
 }
 
+#define TOUCH_POINTS_MAX 5
+
+///
+// stores one touch report and the information if the
+// "touch up" event was already send for this fingers
+// current touch sequence
+struct touch_report
+{
+    uint8_t report[11];
+    bool touch_up_sent;   // remember if we already sent a touch up report for this finger
+};
+
+///
+// buffers for all fingers worth of HID reports
+struct touch_report touch_reports[TOUCH_POINTS_MAX];
+
+///
+// GT811 receive buffer
+uint8_t data[34];
+
+///
+// variables for gt811_poll() processing loop
+uint8_t i, currentFinger, validTouchPoints, offsetData, sentReports;
+uint16_t y_value, inverted_y, scan_time;
+struct touch_report *hid_report;
+
+///
+// setup routine
 void setup_gt811(void)
 {
     /** setup GPIO */
@@ -363,23 +391,21 @@ void setup_gt811(void)
 
     /** write the configuration array to the GT811 */
     gt811_write_register(GT811_REGISTERS_CONFIGURATION, sizeof(gt811_config), (uint8_t*)gt811_config);
+
+    /** initialize the touch reports struct */
+    for(currentFinger = 0; currentFinger < TOUCH_POINTS_MAX; currentFinger++)
+    {
+        // point to the current finger's report  
+        hid_report = &touch_reports[currentFinger];
+
+        // avoid being caught in a dumb infinite loop in the beginning...
+        hid_report->touch_up_sent = true;
+    }
 }
 
-///
-// GT811 receive buffer
-uint8_t data[34];
 
-///
-// buffer for one HID report
-uint8_t hid_report[11] = 
-{
-     0x01 // byte[0] = 0x01 (Report ID, for this application, always = 0x01)
-}; 
 
-///
-// variables for gt811_poll() processing loop
-uint8_t i, currentFinger, validTouchPoints, offsetData, sentReports;
-uint16_t y_value, inverted_y, scan_time;
+
 
 ///
 // poll the GT811 for touch reports and
@@ -401,11 +427,20 @@ void gt811_poll(void)
         scan_time = get_scan_time();
 
         // find out how many touches we have:
-        for(currentFinger = 0; currentFinger < 5; currentFinger++)
+        for(currentFinger = 0; currentFinger < TOUCH_POINTS_MAX; currentFinger++)
         {  
             // check if the "finger N" bit is set high in GT811 answer
             if((data[0] & (0b00000001 << currentFinger)) > 0) 
+            {
                 validTouchPoints++;
+            }
+            else if(hid_report->touch_up_sent == false)
+            {
+                // last frame contained a contact point for this finger;
+                // => we must send a "touch up" report, which is considered
+                // a valid touch point...
+                validTouchPoints++;
+            }
         }
 
         // we need to get rid of the stupid "reserved" (0x733 to 0x739) 
@@ -418,66 +453,91 @@ void gt811_poll(void)
         }
 
         // send one report per finger found
-        for(currentFinger = 0; currentFinger < 5; currentFinger++)
-        {                  
+        for(currentFinger = 0; currentFinger < TOUCH_POINTS_MAX; currentFinger++)
+        {          
+            // point to the current finger's report  
+            hid_report = &touch_reports[currentFinger];
+
+            // byte[0] = 0x01 (Report ID, for this application, always = 0x01)
+            hid_report->report[0] = 0x01;
+
             // check if the "finger N" bit is set high in GT811 answer
             if((data[0] & (0b00000001 << currentFinger)) > 0) 
             {
                 // byte[1] = state        
                 // .......x: Tip switch
                 // xxxxxxx.: Ignored
-                hid_report[1] = 0b00000001;
+                hid_report->report[1] = 0b00000001;
+
+                // this is still within a move sequence of reports
+                hid_report->touch_up_sent = false;
             }
-            else
-                continue;   // skip this "finger"
-            
-            // calculate the "data offset" in the GT811 data_align
-            // for the current finger / at 5 bytes per finger
-            offsetData = currentFinger * 5; 
-
-            // byte[2] Contact index
-            hid_report[2] = currentFinger;
-
-            // byte[3] Tip pressure
-            hid_report[3] = data[offsetData + 6];
-
-            // NOTE: apparently the waveshare touch digitizer was mounted
-            // mirrored in both directions, this means we "flip" X <-> Y
-            // coordinates AND we have to mirror the Y axis
-
-            // byte[4] X coordinate LSB                
-            hid_report[4] = data[offsetData + 5];
-            
-            // byte[5] X coordinate MSB 
-            hid_report[5] = data[offsetData + 4];
-
-            // Y is inverted for some reason
-            // so we have to do some math here...
-            // basicall y max - value...
-            y_value =  data[offsetData + 3] + (data[offsetData + 2] << 8);
-            inverted_y = 480 - y_value;
-
-            // byte[6] Y coordinate LSB
-            hid_report[6] = inverted_y & 0xFF;
-
-            // byte[7] Y coordinate MSB
-            hid_report[7] = (inverted_y & 0xFF00) >> 8;    
-
-            // todo add the systick stuff again
-            hid_report[8] = scan_time & 0xFF;
-            hid_report[9] = (scan_time & 0xFF00) >> 8;
-
-            // byte[8] contact count  
-            if(sentReports == 0) 
+            else if(hid_report->touch_up_sent == false)
             {
-                // this is the first report in the frame: write touch count in report
-                hid_report[10] = validTouchPoints;   
-            }                    
-            else
-                hid_report[10] = 0;
+                // we're required to send a "touch up" report when
+                // a finger was lifted. This means that after the last
+                // report with TIP = true was sent we need to issue
+                // yet another report for the same finger with the 
+                // last coordinates but TIP = false
+                hid_report->report[1] = 0b00000000;
+                
+                // taking care of sending only one touch up report
+                hid_report->touch_up_sent = true;
+            }
+            else 
+                continue;   // skip this "finger"
+
+            
+            if(hid_report->touch_up_sent == false)
+            {            
+                // calculate the "data offset" in the GT811 data_align
+                // for the current finger / at 5 bytes per finger
+                offsetData = currentFinger * 5; 
+
+                // byte[2] Contact index
+                hid_report->report[2] = currentFinger;
+
+                // byte[3] Tip pressure
+                hid_report->report[3] = data[offsetData + 6];
+
+                // NOTE: apparently the waveshare touch digitizer was mounted
+                // mirrored in both directions, this means we "flip" X <-> Y
+                // coordinates AND we have to mirror the Y axis
+
+                // byte[4] X coordinate LSB                
+                hid_report->report[4] = data[offsetData + 5];
+                
+                // byte[5] X coordinate MSB 
+                hid_report->report[5] = data[offsetData + 4];
+
+                // Y is inverted for some reason
+                // so we have to do some math here...
+                // basicall y max - value...
+                y_value =  data[offsetData + 3] + (data[offsetData + 2] << 8);
+                inverted_y = 480 - y_value;
+
+                // byte[6] Y coordinate LSB
+                hid_report->report[6] = inverted_y & 0xFF;
+
+                // byte[7] Y coordinate MSB
+                hid_report->report[7] = (inverted_y & 0xFF00) >> 8;    
+
+                // byte[8] contact count  
+                if(sentReports == 0) 
+                {
+                    // this is the first report in the frame: write touch count in report
+                    hid_report->report[10] = validTouchPoints;   
+                }                    
+                else
+                    hid_report->report[10] = 0;
+            }
+
+            // bytes[8 & 9] this report's scan time
+            hid_report->report[8] = scan_time & 0xFF;
+            hid_report->report[9] = (scan_time & 0xFF00) >> 8;
 
             // send that report!
-            send_hid_report(hid_report, 11);
+            send_hid_report(hid_report->report, 11);
 
             // remember we sent a report
             sentReports++;
