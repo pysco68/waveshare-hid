@@ -33,9 +33,9 @@ Prerequisites
 Instructions
 ------------
 
-WARNING: there is no cheap was of backing up the original firmware from Waveshare so it'll be gone when you flash this firmware. I can and will not take any responsibility for a briked screen, you must know what you are doing starting from here!! To say it clearly once again: I'm not liable for any damage to your computer system or touch screen!
+WARNING: there is no cheap was of backing up the original firmware from Waveshare so it'll be gone when you flash this firmware. I can and will not take any responsibility for a bricked screen, you must know what you are doing starting from here!! To say it clearly once again: I'm not liable for any damage to your computer system or touch screen!
 
-The first thing you will have to do, is soldering some connction wires to the SWDP "header" (not really, they are needle contact surfaces for in production flashing). When you look at the screens PCB (so that you can ready the silkscreen) the contacts are at the bottom right corner, close to the GD32F103, from top to bottom:
+The first thing you will have to do, is soldering some connction wires to the SWDP "header" (not really, they are needle contact surfaces for in production flashing). When you look at the screens PCB (so that you can read the silkscreen) the contacts are at the bottom right corner, close to the GD32F103, from top to bottom:
 
 	- SWDIO
 	- SWCLK
@@ -54,6 +54,8 @@ Next get the sources and compile everything:
 NOTE: I'm using a BlackMagic Probe and GDB in the following to flash the firmware
 
 	arm-none-eabi-gdb main.elf
+
+NOTE: when flashing the display for the first time you must reset the "readout protection bit". Using a Black Magic Probe it can be done by issuing a `monitor option erase` command in GDB once attached to the target (bascially after `attach 1` and before `load` in the listing below).
 
 In the GDB console you can do the following sequence then:
 
