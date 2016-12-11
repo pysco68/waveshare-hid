@@ -4,6 +4,15 @@ Open firmware for Waveshare 7" capacitive touchscreen
 An open firmware of the Waveshare 7" Rev 2.1 capacitive touch display. The original firmware wasn't really HID compliant, so I decided to roll my own as Waveshare didn't reply to my support requests.
 Most notably the touchscreen would not respond correctly when used with Windows 10 Anniversary Update and later because of some change in behavior of the USB HID driver (discarding malformed HID reports).
 
+Hardware versions & other vendors
+---------------------------------
+
+Since I published this firmware and blogged about it, a few people around the world tried to flash the firmware on diffenrent screen models with similar hardware; here are a screens that are known to work so far:
+
+- Waveshare 7" capacitive touch screen model (B / 800x600 pixel / rev 2.1)
+- Waveshare 7" capacitive touch screen model (C / 1024x600 pixel / rev 1.1 and rev 2.1)
+- Eleduino 7" HDMI capacitive touch screen (1024x600 pixel / version 150830)
+
 The hardware 
 ------------
 
@@ -93,6 +102,7 @@ What works:
 - working under Raspbian Jessie
 - working under Windows 10 Anniversary Update (didn't really work with original firmware)
 - **working under Windows 10 IoT Anniversary Update on RaspberryPi (didn't work with original firmware either)**
+- working under Android 4.2.2
 
 ~~What doesn't work (just yet hopefully)~~
 ~~I'm in touch with Microsoft regarding Windows 10 IoT, hopefully I'll get that working soon!~~
