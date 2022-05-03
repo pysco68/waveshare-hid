@@ -504,12 +504,16 @@ void gt811_poll(void)
                 // mirrored in both directions, this means we "flip" X <-> Y
                 // coordinates AND we have to mirror the Y axis
 
-                // byte[4] X coordinate LSB                
-                hid_report->report[4] = data[offsetData + 5];
-                
-                // byte[5] X coordinate MSB 
-                hid_report->report[5] = data[offsetData + 4];
-
+		    
+ 		// Mirror X Axis [fix]
+		x_value = data[offsetData + 5] + (data[offsetData + 4] << 8);
+                inverted_x = 800 - x_value;
+                // byte[4] X coordinate LSB
+                hid_report->report[4] = inverted_x & 0xFF;
+                // byte[5] X coordinate MSB
+                hid_report->report[5] = (inverted_x & 0xFF00) >> 8;
+		
+		    
                 // Y is inverted for some reason
                 // so we have to do some math here...
                 // basicall y max - value...
